@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# require 'nokogiri'
+
 class BlogsController < ApplicationController
   before_action :set_blog, only: %i[show edit update destroy]
 
@@ -47,6 +49,30 @@ class BlogsController < ApplicationController
   def destroy
     @blog.destroy
     redirect_to blogs_url, notice: 'Blog was successfully destroyed.'
+  end
+
+  def data_port
+    file = File.open(params[:file], 'r')
+    content = file.read
+
+    blog_regex = /^(TITLE:[^\n]+\nBODY:[^\n]+\n)+/m
+
+    matches = content.scan(blog_regex)
+    blogs = matches.map do |match|
+      title_regex = /^TITLE:\s*(.*)$/m
+      body_regex = /^BODY:\s*\r?\n(.*)$/m
+
+      title = match.match(title_regex)[1]
+      body = match.match(body_regex)[1]
+
+      Blog.new(title:, content: body)
+    end
+
+    if blogs.all?(&:save)
+      redirect_to blogs_path, notice: 'Blogs were successfully imported.'
+    else
+      render :new, alert: 'Failed to import blog.'
+    end
   end
 
   private
